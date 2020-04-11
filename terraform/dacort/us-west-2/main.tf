@@ -41,8 +41,8 @@ resource "aws_ecs_task_definition" "mongo" {
 
 resource "aws_ecs_service" "mongo" {
   name            = "mongodb"
-  cluster         = "${aws_ecs_cluster.ecs-damon.id}"
-  task_definition = "${aws_ecs_task_definition.mongo.arn}"
+  cluster         = aws_ecs_cluster.ecs-damon.id
+  task_definition = aws_ecs_task_definition.mongo.arn
   desired_count   = 1
 
   ordered_placement_strategy {
