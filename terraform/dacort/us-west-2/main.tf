@@ -1,6 +1,6 @@
 provider "aws" {
-    version = "~> 2.53"
-    region = "us-west-2"
+  version = "~> 2.53"
+  region  = "us-west-2"
 }
 
 
@@ -11,15 +11,15 @@ module "vpc" {
   name = "damons-vpc"
   cidr = "10.20.0.0/16"
 
-  azs             = ["us-west-2a", "us-west-2b", "us-west-2c"]
-  private_subnets = ["10.20.1.0/24", "10.20.2.0/24", "10.20.3.0/24"]
+  azs              = ["us-west-2a", "us-west-2b", "us-west-2c"]
+  private_subnets  = ["10.20.1.0/24", "10.20.2.0/24", "10.20.3.0/24"]
   database_subnets = ["10.20.10.0/24", "10.20.11.0/24", "10.20.12.0/24"]
-  public_subnets  = ["10.20.101.0/24", "10.20.102.0/24", "10.20.103.0/24"]
-  
+  public_subnets   = ["10.20.101.0/24", "10.20.102.0/24", "10.20.103.0/24"]
+
   enable_nat_gateway = true
 
   tags = {
-    Terraform = "true"
+    Terraform   = "true"
     Environment = "damons-vpc"
   }
 }
@@ -27,7 +27,7 @@ module "vpc" {
 
 # Service discovery 🕺
 resource "aws_service_discovery_public_dns_namespace" "fargate" {
-  name = "damon.local"
+  name        = "damon.local"
   description = "Fargate discovery managed zone."
 }
 
@@ -36,10 +36,10 @@ resource "aws_service_discovery_public_dns_namespace" "fargate" {
 resource "aws_security_group" "nsg_task" {
   name        = "damon-task"
   description = "Limit connections from internal resources while allowing damon-task to connect to all external resources"
-  vpc_id      =  module.vpc.vpc_id
+  vpc_id      = module.vpc.vpc_id
 
   tags = {
-    Terraform = "true"
+    Terraform   = "true"
     Environment = "damons-vpc"
   }
 }
@@ -63,36 +63,45 @@ resource "aws_ecs_cluster" "ecs-damon" {
 
 # MySQL
 module "mysql_service" {
-  source            = "../../modules/ecs_database"
-  ecs_cluster_id    = aws_ecs_cluster.ecs-damon.id
-  ecs_task_family   = "mysql"
-  ecs_task_cpu      = "256"
-  ecs_task_memory   = "512"
-  container_port    = 3306
-  instance_count    = 1
+  source          = "../../modules/ecs_database"
+  ecs_cluster_id  = aws_ecs_cluster.ecs-damon.id
+  ecs_task_family = "mysql"
+  ecs_task_cpu    = "256"
+  ecs_task_memory = "512"
+  container_port  = 3306
+  instance_count  = 1
 
-  subnet_ids              = module.vpc.public_subnets
-  security_group_id       = aws_security_group.nsg_task.id
-  discovery_namespace_id  = aws_service_discovery_public_dns_namespace.fargate.id
+  subnet_ids             = module.vpc.public_subnets
+  security_group_id      = aws_security_group.nsg_task.id
+  discovery_namespace_id = aws_service_discovery_public_dns_namespace.fargate.id
 
   task_definition_template_path = "task-definitions/mysql.json"
-  template_vars = {}
+  template_vars                 = {}
 }
 
 # MongoDB
 module "mongo_service" {
-  source            = "../../modules/ecs_database"
-  ecs_cluster_id    = aws_ecs_cluster.ecs-damon.id
-  ecs_task_family   = "mongo"
-  ecs_task_cpu      = "256"
-  ecs_task_memory   = "512"
-  container_port    = 27017
-  instance_count    = 1
+  source          = "../../modules/ecs_database"
+  ecs_cluster_id  = aws_ecs_cluster.ecs-damon.id
+  ecs_task_family = "mongo"
+  ecs_task_cpu    = "256"
+  ecs_task_memory = "512"
+  container_port  = 27017
+  instance_count  = 1
 
-  subnet_ids              = module.vpc.public_subnets
-  security_group_id       = aws_security_group.nsg_task.id
-  discovery_namespace_id  = aws_service_discovery_public_dns_namespace.fargate.id
+  subnet_ids             = module.vpc.public_subnets
+  security_group_id      = aws_security_group.nsg_task.id
+  discovery_namespace_id = aws_service_discovery_public_dns_namespace.fargate.id
 
   task_definition_template_path = "task-definitions/mongodb.json"
-  template_vars = {}
+  template_vars                 = {}
+}
+
+# Damon's dev box
+module "damon_ec2" {
+  name           = "damon"
+  ssh_key_name   = "damon"
+  source         = "../../modules/dev_box"
+  subnet_ids     = module.vpc.public_subnets
+  security_group = aws_security_group.nsg_task.id
 }
