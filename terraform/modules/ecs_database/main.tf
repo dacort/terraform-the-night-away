@@ -7,7 +7,7 @@ data "template_file" "service_template" {
 
 # Database task and service definitions
 resource "aws_ecs_task_definition" "service" {
-  family                    = "service"
+  family                    = var.ecs_task_family
   requires_compatibilities  = ["FARGATE"]
   network_mode              = "awsvpc"
   cpu                       = var.ecs_task_cpu

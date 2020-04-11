@@ -8,6 +8,12 @@
           "containerPort": 3306,
           "hostPort": 3306
         }
+      ],
+      "environment": [
+        {
+          "name": "MYSQL_ROOT_PASSWORD",
+          "value": "s0muchpollenonmyscreen"
+        }
       ]
     }
   ]

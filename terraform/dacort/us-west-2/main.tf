@@ -61,7 +61,7 @@ resource "aws_ecs_cluster" "ecs-damon" {
   name = "ecs-damon-life"
 }
 
-
+# MySQL
 module "mysql_service" {
   source            = "../../modules/ecs_database"
   ecs_cluster_id    = aws_ecs_cluster.ecs-damon.id
@@ -79,68 +79,20 @@ module "mysql_service" {
   template_vars = {}
 }
 
+# MongoDB
+module "mongo_service" {
+  source            = "../../modules/ecs_database"
+  ecs_cluster_id    = aws_ecs_cluster.ecs-damon.id
+  ecs_task_family   = "mongo"
+  ecs_task_cpu      = "256"
+  ecs_task_memory   = "512"
+  container_port    = 27017
+  instance_count    = 1
 
-# DNS record for the ECS service
-resource "aws_service_discovery_service" "fargate" {
-  name = "dacort"
-  dns_config {
-    namespace_id = aws_service_discovery_public_dns_namespace.fargate.id
-    routing_policy = "MULTIVALUE"
-    dns_records {
-      ttl = 10
-      type = "A"
-    }
+  subnet_ids              = module.vpc.public_subnets
+  security_group_id       = aws_security_group.nsg_task.id
+  discovery_namespace_id  = aws_service_discovery_public_dns_namespace.fargate.id
 
-    dns_records {
-      ttl  = 10
-      type = "SRV"
-    }
-  }
-  health_check_custom_config {
-    failure_threshold = 5
-  }
-}
-
-
-
-
-# Mongo task and service definitions
-resource "aws_ecs_task_definition" "mongo" {
-  family                    = "service"
-  requires_compatibilities  = ["FARGATE"]
-  network_mode              = "awsvpc"
-  cpu                       = "256"
-  memory                    = "512"
-
-  container_definitions = file("task-definitions/service.json")
-
-  tags = {
-    Terraform = "true"
-    Environment = "damons-vpc"
-  }
-}
-
-resource "aws_ecs_service" "mongo" {
-  name            = "mongodb"
-  cluster         = aws_ecs_cluster.ecs-damon.id
-  task_definition = aws_ecs_task_definition.mongo.arn
-  desired_count   = 1
-  launch_type     = "FARGATE"
-
-  # Note that I'm putting this on the public subnet so I can easily test it
-  # It _should_ probably be on a private subnet. :)
-  #
-  # `subnets` was previously private and I switched it to public, but it didn't take.
-  # When I destroyed everything and recreated it was fine...
-  network_configuration {
-    security_groups   = [aws_security_group.nsg_task.id]
-    subnets           =  module.vpc.public_subnets
-    assign_public_ip  = true
-  }
-
-  # Try to register this service
-  service_registries {
-    registry_arn = aws_service_discovery_service.fargate.arn
-    port = "27017"
-  }
+  task_definition_template_path = "task-definitions/mongodb.json"
+  template_vars = {}
 }
