@@ -31,26 +31,6 @@ resource "aws_service_discovery_public_dns_namespace" "fargate" {
   description = "Fargate discovery managed zone."
 }
 
-resource "aws_service_discovery_service" "fargate" {
-  name = "dacort"
-  dns_config {
-    namespace_id = aws_service_discovery_public_dns_namespace.fargate.id
-    routing_policy = "MULTIVALUE"
-    dns_records {
-      ttl = 10
-      type = "A"
-    }
-
-    dns_records {
-      ttl  = 10
-      type = "SRV"
-    }
-  }
-  health_check_custom_config {
-    failure_threshold = 5
-  }
-}
-
 
 # Security group for ECS cluster
 resource "aws_security_group" "nsg_task" {
@@ -75,10 +55,54 @@ resource "aws_security_group_rule" "nsg_task_egress_rule" {
   security_group_id = aws_security_group.nsg_task.id
 }
 
+
 # Actual ECS Cluster
 resource "aws_ecs_cluster" "ecs-damon" {
   name = "ecs-damon-life"
 }
+
+
+module "mysql_service" {
+  source            = "../../modules/ecs_database"
+  ecs_cluster_id    = aws_ecs_cluster.ecs-damon.id
+  ecs_task_family   = "mysql"
+  ecs_task_cpu      = "256"
+  ecs_task_memory   = "512"
+  container_port    = 3306
+  instance_count    = 1
+
+  subnet_ids              = module.vpc.public_subnets
+  security_group_id       = aws_security_group.nsg_task.id
+  discovery_namespace_id  = aws_service_discovery_public_dns_namespace.fargate.id
+
+  task_definition_template_path = "task-definitions/mysql.json"
+  template_vars = {}
+}
+
+
+# DNS record for the ECS service
+resource "aws_service_discovery_service" "fargate" {
+  name = "dacort"
+  dns_config {
+    namespace_id = aws_service_discovery_public_dns_namespace.fargate.id
+    routing_policy = "MULTIVALUE"
+    dns_records {
+      ttl = 10
+      type = "A"
+    }
+
+    dns_records {
+      ttl  = 10
+      type = "SRV"
+    }
+  }
+  health_check_custom_config {
+    failure_threshold = 5
+  }
+}
+
+
+
 
 # Mongo task and service definitions
 resource "aws_ecs_task_definition" "mongo" {
