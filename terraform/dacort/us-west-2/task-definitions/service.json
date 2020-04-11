@@ -2,8 +2,6 @@
     {
       "name": "mongo",
       "image": "mongo",
-      "cpu": 250,
-      "memory": 512,
       "essential": true,
       "portMappings": [
         {

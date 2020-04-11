@@ -3,6 +3,8 @@ provider "aws" {
     region = "us-west-2"
 }
 
+
+# Base VPC
 module "vpc" {
   source = "terraform-aws-modules/vpc/aws"
 
@@ -23,6 +25,28 @@ module "vpc" {
 }
 
 
+# Security group for ECS cluster
+resource "aws_security_group" "nsg_task" {
+  name        = "damon-task"
+  description = "Limit connections from internal resources while allowing damon-task to connect to all external resources"
+  vpc_id      =  module.vpc.vpc_id
+
+  tags = {
+    Terraform = "true"
+    Environment = "damons-vpc"
+  }
+}
+
+resource "aws_security_group_rule" "nsg_task_egress_rule" {
+  description = "Allows task to establish connections to all resources"
+  type        = "egress"
+  from_port   = "0"
+  to_port     = "0"
+  protocol    = "-1"
+  cidr_blocks = ["0.0.0.0/0"]
+
+  security_group_id = aws_security_group.nsg_task.id
+}
 
 
 resource "aws_ecs_cluster" "ecs-damon" {
@@ -30,12 +54,17 @@ resource "aws_ecs_cluster" "ecs-damon" {
 }
 
 resource "aws_ecs_task_definition" "mongo" {
-  family                = "service"
+  family                    = "service"
+  requires_compatibilities  = ["FARGATE"]
+  network_mode              = "awsvpc"
+  cpu                       = "256"
+  memory                    = "512"
+
   container_definitions = file("task-definitions/service.json")
 
-  placement_constraints {
-    type       = "memberOf"
-    expression = "attribute:ecs.availability-zone in [us-west-2a, us-west-2b]"
+  tags = {
+    Terraform = "true"
+    Environment = "damons-vpc"
   }
 }
 
@@ -44,14 +73,13 @@ resource "aws_ecs_service" "mongo" {
   cluster         = aws_ecs_cluster.ecs-damon.id
   task_definition = aws_ecs_task_definition.mongo.arn
   desired_count   = 1
+  launch_type     = "FARGATE"
 
-  ordered_placement_strategy {
-    type  = "binpack"
-    field = "cpu"
-  }
-
-  placement_constraints {
-    type       = "memberOf"
-    expression = "attribute:ecs.availability-zone in [us-west-2a, us-west-2b]"
+  # Note that I'm putting this on the public subnet so I can easily test it
+  # It _should_ probably be on a private subnet. :)
+  network_configuration {
+    security_groups   = [aws_security_group.nsg_task.id]
+    subnets           =  module.vpc.public_subnets
+    assign_public_ip  = true
   }
 }

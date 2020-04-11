@@ -15,3 +15,5 @@ Segment AWS Stack: https://segment.com/blog/the-segment-aws-stack/
 ### ECS
 
 Task definition: https://www.terraform.io/docs/providers/aws/r/ecs_task_definition.html
+
+Came across https://github.com/turnerlabs/terraform-ecs-fargate-service-discovery - super useful
