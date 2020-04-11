@@ -77,6 +77,9 @@ resource "aws_ecs_service" "mongo" {
 
   # Note that I'm putting this on the public subnet so I can easily test it
   # It _should_ probably be on a private subnet. :)
+  #
+  # `subnets` was previously private and I switched it to public, but it didn't take.
+  # When I destroyed everything and recreated it was fine...
   network_configuration {
     security_groups   = [aws_security_group.nsg_task.id]
     subnets           =  module.vpc.public_subnets
