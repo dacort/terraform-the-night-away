@@ -38,3 +38,5 @@ https://registry.terraform.io/modules/terraform-aws-modules/ec2-instance/aws/2.5
 Probably because I was using an older version? Nope. So I just removed security for now. :)
 
 - Also want to have a persistent EBS (or EFS?) for maintaining data across EC2 instances. https://serverfault.com/questions/831974/can-i-re-use-an-ebs-volume-with-aws-asg
+
+- EC2 dev box can't resolve service discovery...unsure why. Some reference here: https://github.com/devops-workflow/terraform-aws-ecs-service-discovery/blob/master/main.tf

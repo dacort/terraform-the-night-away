@@ -16,7 +16,12 @@ module "vpc" {
   database_subnets = ["10.20.10.0/24", "10.20.11.0/24", "10.20.12.0/24"]
   public_subnets   = ["10.20.101.0/24", "10.20.102.0/24", "10.20.103.0/24"]
 
-  enable_nat_gateway = true
+  enable_nat_gateway    = true
+  enable_dns_hostnames  = true
+
+  enable_dhcp_options              = true
+  dhcp_options_domain_name         = "damon.local"
+  dhcp_options_domain_name_servers = ["AmazonProvidedDNS"]
 
   tags = {
     Terraform   = "true"
@@ -26,9 +31,10 @@ module "vpc" {
 
 
 # Service discovery 🕺
-resource "aws_service_discovery_public_dns_namespace" "fargate" {
+resource "aws_service_discovery_private_dns_namespace" "fargate" {
   name        = "damon.local"
   description = "Fargate discovery managed zone."
+  vpc         = module.vpc.vpc_id
 }
 
 
@@ -73,7 +79,7 @@ module "mysql_service" {
 
   subnet_ids             = module.vpc.public_subnets
   security_group_id      = aws_security_group.nsg_task.id
-  discovery_namespace_id = aws_service_discovery_public_dns_namespace.fargate.id
+  discovery_namespace_id = aws_service_discovery_private_dns_namespace.fargate.id
 
   task_definition_template_path = "task-definitions/mysql.json"
   template_vars                 = {}
@@ -91,7 +97,7 @@ module "mongo_service" {
 
   subnet_ids             = module.vpc.public_subnets
   security_group_id      = aws_security_group.nsg_task.id
-  discovery_namespace_id = aws_service_discovery_public_dns_namespace.fargate.id
+  discovery_namespace_id = aws_service_discovery_private_dns_namespace.fargate.id
 
   task_definition_template_path = "task-definitions/mongodb.json"
   template_vars                 = {}
